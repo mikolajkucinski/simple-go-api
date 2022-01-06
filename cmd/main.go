@@ -26,12 +26,18 @@ func getHandler(responseWriter http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	employee, err := dbConnector.FindEmployeeByUserId(getRequest.GetUserId())
+	objId, err := primitive.ObjectIDFromHex(getRequest.GetUserId())
+	if err != nil {
+		fmt.Println("Failed to parse string to ObjectId")
+		return
+	}
+
+	employee, err := dbConnector.FindEmployeeByUserId(objId)
 	if err != nil {
 		fmt.Println("Failed to retrieve employee from the database")
 		return
 	}
-	user, err := dbConnector.FindUserById(getRequest.GetUserId())
+	user, err := dbConnector.FindUserById(objId)
 	if err != nil {
 		fmt.Println("Failed to retrieve user from the database")
 		return

@@ -42,26 +42,18 @@ func (dbConnector *DbConnector) Connect() {
 	dbConnector.EmployeeCollection = dbConnector.client.Database("go_test").Collection("EmployeeCollection")
 }
 
-func (dbConnector *DbConnector) FindEmployeeByUserId(userId string) (Employee, error) {
-	id, err := primitive.ObjectIDFromHex(userId)
-	if err != nil {
-		return Employee{}, err
-	}
+func (dbConnector *DbConnector) FindEmployeeByUserId(userId primitive.ObjectID) (Employee, error) {
 	employee := &Employee{}
-	if err = dbConnector.EmployeeCollection.FindOne(dbConnector.Context, bson.M{"userId": id}).Decode(employee); err != nil {
+	if err := dbConnector.EmployeeCollection.FindOne(dbConnector.Context, bson.M{"userId": userId}).Decode(employee); err != nil {
 		return Employee{}, err
 	}
 
 	return *employee, nil
 }
 
-func (dbConnector *DbConnector) FindUserById(userId string) (User, error) {
-	id, err := primitive.ObjectIDFromHex(userId)
-	if err != nil {
-		return User{}, err
-	}
+func (dbConnector *DbConnector) FindUserById(id primitive.ObjectID) (User, error) {
 	user := &User{}
-	if err = dbConnector.UserCollection.FindOne(dbConnector.Context, bson.M{"_id": id}).Decode(user); err != nil {
+	if err := dbConnector.UserCollection.FindOne(dbConnector.Context, bson.M{"_id": id}).Decode(user); err != nil {
 		return User{}, err
 	}
 
