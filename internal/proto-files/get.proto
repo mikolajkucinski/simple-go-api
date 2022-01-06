@@ -1,0 +1,16 @@
+syntax = "proto3";
+package get;
+
+option go_package = ".";
+
+message GetRequest {
+  string userId = 1;
+}
+
+message GetResponse {
+  string firstname = 1;
+  string lastname = 2;
+  string email = 3;
+  string employeeId = 4;
+  string designation = 5;
+}

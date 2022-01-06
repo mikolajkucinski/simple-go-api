@@ -5,6 +5,8 @@ import (
 	proto_files "awesomeProject/internal/proto-files"
 	"fmt"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"google.golang.org/protobuf/proto"
 	"log"
 	"net/http"
 )
@@ -12,83 +14,116 @@ import (
 var dbConnector *internal.DbConnector
 
 func getHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	rawQuery := request.URL.Query()
-	protoBody, isPresent := rawQuery["proto_body"]
-	if !isPresent {
-		fmt.Println("Failed to retrieve proto_body")
+	decodedProtoBody, err := internal.DecodeProtoBody(request)
+	if err != nil {
+		fmt.Println("Failed to decode proto body")
 		return
 	}
 
-	employee, err := internal.DecodeEmployee(protoBody[0])
-	if err != nil {
-		fmt.Println("Failed to decode employee")
-	}
-
-	result, err := dbConnector.FindUserByUserId(employee.UserId)
-	if err != nil {
-		fmt.Printf("Failed to retrieve data for user id = %s", employee.GetUserId())
+	getRequest := &proto_files.GetRequest{}
+	if err := proto.Unmarshal(decodedProtoBody, getRequest); err != nil {
+		fmt.Println("Failed to unmarshall the GetRequest")
 		return
 	}
 
-	retrievedUser := proto_files.User{
-		FirstName: result[0]["firstName"].(string),
-		LastName:  result[0]["secondName"].(string),
-		Email:     result[0]["email"].(string),
+	employee, err := dbConnector.FindEmployeeByUserId(getRequest.GetUserId())
+	if err != nil {
+		fmt.Println("Failed to retrieve employee from the database")
+		return
 	}
-	fmt.Printf("User retrieved = %s", retrievedUser)
+	user, err := dbConnector.FindUserById(getRequest.GetUserId())
+	if err != nil {
+		fmt.Println("Failed to retrieve user from the database")
+		return
+	}
+
+	getResponse := &proto_files.GetResponse{
+		Firstname:   user.FirstName,
+		Lastname:    user.LastName,
+		Email:       user.Email,
+		EmployeeId:  employee.Id.Hex(),
+		Designation: employee.Designation,
+	}
+	getResponseMarshalled, err := proto.Marshal(getResponse)
+	if err != nil {
+		fmt.Println("Failed to marshal the GetResponse")
+		return
+	}
+	responseWriter.Write(getResponseMarshalled)
 }
 
 func postHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	decodedJson := &struct {
-		FirstName   string
-		LastName    string
-		Email       string
-		Designation string
-	}{}
-	if err := internal.DecodeJson(decodedJson, request); err != nil {
-		return
-	}
-
-	insertedUserId, err := dbConnector.InsertUser(&proto_files.User{
-		FirstName: decodedJson.FirstName,
-		LastName:  decodedJson.LastName,
-		Email:     decodedJson.Email})
+	decodedProtoBody, err := internal.DecodeProtoBody(request)
 	if err != nil {
-		fmt.Println("Failed to insert new user")
+		fmt.Println("Failed to decode proto body")
 		return
 	}
 
-	insertedEmployeeId, err := dbConnector.InsertEmployee(&proto_files.Employee{
-		UserId:      insertedUserId,
-		Designation: decodedJson.Designation,
-	})
+	postRequest := &proto_files.PostRequest{}
+	if err := proto.Unmarshal(decodedProtoBody, postRequest); err != nil {
+		fmt.Println("Failed to unmarshall the PostRequest")
+		return
+	}
+
+	userId, err := dbConnector.InsertUser(postRequest.GetFirstName(), postRequest.GetLastName(), postRequest.GetEmail())
 	if err != nil {
-		fmt.Println("Failed to insert new employee")
+		fmt.Printf("Failed to insert user into database, reason: %s", err.Error())
+		return
+	}
+	_, err = dbConnector.InsertEmployee(userId, postRequest.GetDesignation())
+	if err != nil {
+		fmt.Println("Failed to insert employee into database")
 		return
 	}
 
-	fmt.Printf("Inserted new user and employers under ids %s and %s", insertedUserId, insertedEmployeeId)
+	postResponse := &proto_files.PostResponse{Id: userId.Hex()}
+	getResponseMarshalled, err := proto.Marshal(postResponse)
+	if err != nil {
+		fmt.Println("Failed to marshal the PostResponse")
+		return
+	}
+	responseWriter.Write(getResponseMarshalled)
 }
 
 func patchHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	decodedJson := &struct {
-		UserId string
-		Email  string
-	}{}
-	if err := internal.DecodeJson(decodedJson, request); err != nil {
-		return
-	}
-
-	_, err := dbConnector.UpdateUser(decodedJson.UserId, decodedJson.Email)
+	decodedProtoBody, err := internal.DecodeProtoBody(request)
 	if err != nil {
-		fmt.Printf("Failed to update user with id = %s", decodedJson.UserId)
+		fmt.Println("Failed to decode proto body")
 		return
 	}
 
-	fmt.Printf("Updated user with id = %s", decodedJson.UserId)
+	patchRequest := &proto_files.PatchRequest{}
+	if err := proto.Unmarshal(decodedProtoBody, patchRequest); err != nil {
+		fmt.Println("Failed to unmarshall the PostRequest")
+		return
+	}
+
+	objId, err := primitive.ObjectIDFromHex(patchRequest.GetId())
+	if err != nil {
+		fmt.Println("Failed to parse string to ObjectId")
+		return
+	}
+	_, err = dbConnector.UpdateUser(objId, patchRequest.GetEmail())
+	if err != nil {
+		fmt.Println("Failed to update user")
+		return
+	}
+
+	responseWriter.Write([]byte("Sucessfully updated user!\n"))
 }
 
 func main() {
+	//post := &proto_files.PostRequest{
+	//	FirstName:   "Izabelka",
+	//	LastName:    "Wolek",
+	//	Email:       "none",
+	//	Designation: "Accountant",
+	//}
+	//
+	//result, _ := proto.Marshal(post)
+	//sEnc := b64.StdEncoding.EncodeToString(result)
+	//fmt.Println(sEnc)
+
 	dbConnector = &internal.DbConnector{}
 	dbConnector.Connect()
 	defer dbConnector.Close()

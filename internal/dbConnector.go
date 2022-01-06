@@ -1,7 +1,6 @@
 package internal
 
 import (
-	proto_files "awesomeProject/internal/proto-files"
 	"context"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,6 +16,19 @@ type DbConnector struct {
 	Context                            context.Context
 }
 
+type Employee struct {
+	Id          primitive.ObjectID `json:"_id" bson:"_id"`
+	UserId      primitive.ObjectID `json:"userId" bson:"userId"`
+	Designation string             `json:"designation" bson:"designation"`
+}
+
+type User struct {
+	Id        primitive.ObjectID `json:"_id" bson:"_id"`
+	FirstName string             `json:"firstName" bson:"firstName"`
+	LastName  string             `json:"lastName" bson:"lastName"`
+	Email     string             `json:"email" bson:"email"`
+}
+
 func (dbConnector *DbConnector) Connect() {
 	var connectionError error
 
@@ -30,66 +42,68 @@ func (dbConnector *DbConnector) Connect() {
 	dbConnector.EmployeeCollection = dbConnector.client.Database("go_test").Collection("EmployeeCollection")
 }
 
-func (dbConnector *DbConnector) FindUserByUserId(userId string) ([]bson.M, error) {
+func (dbConnector *DbConnector) FindEmployeeByUserId(userId string) (Employee, error) {
 	id, err := primitive.ObjectIDFromHex(userId)
 	if err != nil {
-		return []bson.M{}, err
+		return Employee{}, err
+	}
+	employee := &Employee{}
+	if err = dbConnector.EmployeeCollection.FindOne(dbConnector.Context, bson.M{"userId": id}).Decode(employee); err != nil {
+		return Employee{}, err
 	}
 
-	filterCursor, err := dbConnector.UserCollection.Find(dbConnector.Context, bson.M{"id": id})
-	if err != nil {
-		return []bson.M{}, err
-	}
-
-	var user []bson.M
-	if err := filterCursor.All(dbConnector.Context, &user); err != nil {
-		return []bson.M{}, err
-	}
-
-	return user, nil
+	return *employee, nil
 }
 
-func (dbConnector *DbConnector) InsertUser(user *proto_files.User) (string, error) {
+func (dbConnector *DbConnector) FindUserById(userId string) (User, error) {
+	id, err := primitive.ObjectIDFromHex(userId)
+	if err != nil {
+		return User{}, err
+	}
+	user := &User{}
+	if err = dbConnector.UserCollection.FindOne(dbConnector.Context, bson.M{"_id": id}).Decode(user); err != nil {
+		return User{}, err
+	}
+
+	return *user, nil
+}
+
+func (dbConnector *DbConnector) InsertUser(firstName, lastName, email string) (primitive.ObjectID, error) {
 	result, err := dbConnector.UserCollection.InsertOne(dbConnector.Context, bson.D{
-		{Key: "firstName", Value: user.GetFirstName()},
-		{Key: "lastName", Value: user.GetLastName()},
-		{Key: "email", Value: user.GetEmail()}})
-
-	return result.InsertedID.(primitive.ObjectID).Hex(), err
-}
-
-func (dbConnector *DbConnector) UpdateUser(userId, newEmail string) (int64, error) {
-	id, err := primitive.ObjectIDFromHex(userId)
+		{Key: "firstName", Value: firstName},
+		{Key: "lastName", Value: lastName},
+		{Key: "email", Value: email}})
 	if err != nil {
-		return 0, err
+		return primitive.ObjectID{}, err
 	}
 
+	return result.InsertedID.(primitive.ObjectID), err
+}
+
+func (dbConnector *DbConnector) InsertEmployee(userId primitive.ObjectID, designation string) (primitive.ObjectID, error) {
+	result, err := dbConnector.EmployeeCollection.InsertOne(dbConnector.Context, bson.D{
+		{Key: "userId", Value: userId},
+		{Key: "designation", Value: designation}})
+	if err != nil {
+		return primitive.ObjectID{}, err
+	}
+
+	return result.InsertedID.(primitive.ObjectID), err
+}
+
+func (dbConnector *DbConnector) UpdateUser(userId primitive.ObjectID, email string) (int64, error) {
 	result, err := dbConnector.UserCollection.UpdateOne(
 		dbConnector.Context,
-		bson.M{"_id": id},
+		bson.M{"_id": userId},
 		bson.D{
-			{"$set", bson.D{{"email", newEmail}}},
+			{"$set", bson.D{{"email", email}}},
 		},
 	)
 	if err != nil {
-		fmt.Printf("Failed to update user with id %s", userId)
 		return 0, err
 	}
 
-	return result.ModifiedCount, nil
-}
-
-func (dbConnector *DbConnector) InsertEmployee(employee *proto_files.Employee) (string, error) {
-	objectId, err := primitive.ObjectIDFromHex(employee.GetUserId())
-	if err != nil {
-		return "", err
-	}
-
-	result, err := dbConnector.EmployeeCollection.InsertOne(dbConnector.Context, bson.D{
-		{Key: "userId", Value: objectId},
-		{Key: "designation", Value: employee.GetDesignation()}})
-
-	return result.InsertedID.(primitive.ObjectID).Hex(), err
+	return result.ModifiedCount, err
 }
 
 func (dbConnector *DbConnector) Close() error {

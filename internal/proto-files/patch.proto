@@ -1,0 +1,9 @@
+syntax = "proto3";
+package patch;
+
+option go_package = ".";
+
+message PatchRequest {
+  string id = 1;
+  string email = 2;
+}
