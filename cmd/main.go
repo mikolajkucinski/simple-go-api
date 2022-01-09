@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/protobuf/proto"
+	"io/ioutil"
 	"log"
 	"net/http"
 )
@@ -14,14 +15,10 @@ import (
 var dbConnector *internal.DbConnector
 
 func getHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	decodedProtoBody, err := internal.DecodeProtoBody(request)
-	if err != nil {
-		fmt.Println("Failed to decode proto body")
-		return
-	}
+	protoBody, err := ioutil.ReadAll(request.Body)
 
 	getRequest := &proto_files.GetRequest{}
-	if err := proto.Unmarshal(decodedProtoBody, getRequest); err != nil {
+	if err := proto.Unmarshal(protoBody, getRequest); err != nil {
 		fmt.Println("Failed to unmarshall the GetRequest")
 		return
 	}
@@ -59,14 +56,10 @@ func getHandler(responseWriter http.ResponseWriter, request *http.Request) {
 }
 
 func postHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	decodedProtoBody, err := internal.DecodeProtoBody(request)
-	if err != nil {
-		fmt.Println("Failed to decode proto body")
-		return
-	}
+	protoBody, err := ioutil.ReadAll(request.Body)
 
 	postRequest := &proto_files.PostRequest{}
-	if err := proto.Unmarshal(decodedProtoBody, postRequest); err != nil {
+	if err := proto.Unmarshal(protoBody, postRequest); err != nil {
 		fmt.Println("Failed to unmarshall the PostRequest")
 		return
 	}
@@ -92,14 +85,10 @@ func postHandler(responseWriter http.ResponseWriter, request *http.Request) {
 }
 
 func patchHandler(responseWriter http.ResponseWriter, request *http.Request) {
-	decodedProtoBody, err := internal.DecodeProtoBody(request)
-	if err != nil {
-		fmt.Println("Failed to decode proto body")
-		return
-	}
+	protoBody, err := ioutil.ReadAll(request.Body)
 
 	patchRequest := &proto_files.PatchRequest{}
-	if err := proto.Unmarshal(decodedProtoBody, patchRequest); err != nil {
+	if err := proto.Unmarshal(protoBody, patchRequest); err != nil {
 		fmt.Println("Failed to unmarshall the PostRequest")
 		return
 	}
@@ -119,17 +108,6 @@ func patchHandler(responseWriter http.ResponseWriter, request *http.Request) {
 }
 
 func main() {
-	//post := &proto_files.PostRequest{
-	//	FirstName:   "Izabelka",
-	//	LastName:    "Wolek",
-	//	Email:       "none",
-	//	Designation: "Accountant",
-	//}
-	//
-	//result, _ := proto.Marshal(post)
-	//sEnc := b64.StdEncoding.EncodeToString(result)
-	//fmt.Println(sEnc)
-
 	dbConnector = &internal.DbConnector{}
 	dbConnector.Connect()
 	defer dbConnector.Close()
