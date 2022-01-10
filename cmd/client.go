@@ -84,11 +84,11 @@ func main() {
 	getRequest := &proto_files.GetRequest{UserId: postResponse.GetId()}
 	getResponse := makeGet(getRequest)
 	fmt.Println(getResponse)
-	//
-	//patchRequest := &pb.UserPatchRequest{UserId: postResponse.UserId, Email: "damian.halatek@frontdoorhome.com"}
-	//makePatch(patchRequest)
-	//
-	//getRequest = &pb.UserGetRequest{UserId: postResponse.UserId}
-	//getResponse = makeGet(getRequest)
-	//fmt.Println(getResponse)
+
+	patchRequest := &proto_files.PatchRequest{Id: postResponse.GetId(), Email: "none"}
+	makePatch(patchRequest)
+
+	getRequest = &proto_files.GetRequest{UserId: postResponse.GetId()}
+	getResponse = makeGet(getRequest)
+	fmt.Println(getResponse)
 }

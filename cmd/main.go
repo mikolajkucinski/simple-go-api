@@ -3,7 +3,6 @@ package main
 import (
 	"awesomeProject/internal"
 	proto_files "awesomeProject/internal/proto-files"
-	"fmt"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/protobuf/proto"
@@ -19,24 +18,24 @@ func getHandler(responseWriter http.ResponseWriter, request *http.Request) {
 
 	getRequest := &proto_files.GetRequest{}
 	if err := proto.Unmarshal(protoBody, getRequest); err != nil {
-		fmt.Println("Failed to unmarshall the GetRequest")
+		log.Fatalf("Failed to unmarshall the GetRequest")
 		return
 	}
 
 	objId, err := primitive.ObjectIDFromHex(getRequest.GetUserId())
 	if err != nil {
-		fmt.Println("Failed to parse string to ObjectId")
+		log.Fatalf("Failed to parse string to ObjectId")
 		return
 	}
 
 	employee, err := dbConnector.FindEmployeeByUserId(objId)
 	if err != nil {
-		fmt.Println("Failed to retrieve employee from the database")
+		log.Fatalf("Failed to retrieve employee from the database")
 		return
 	}
 	user, err := dbConnector.FindUserById(objId)
 	if err != nil {
-		fmt.Println("Failed to retrieve user from the database")
+		log.Fatalf("Failed to retrieve user from the database")
 		return
 	}
 
@@ -49,7 +48,7 @@ func getHandler(responseWriter http.ResponseWriter, request *http.Request) {
 	}
 	getResponseMarshalled, err := proto.Marshal(getResponse)
 	if err != nil {
-		fmt.Println("Failed to marshal the GetResponse")
+		log.Fatalf("Failed to marshal the GetResponse")
 		return
 	}
 	responseWriter.Write(getResponseMarshalled)
@@ -60,25 +59,25 @@ func postHandler(responseWriter http.ResponseWriter, request *http.Request) {
 
 	postRequest := &proto_files.PostRequest{}
 	if err := proto.Unmarshal(protoBody, postRequest); err != nil {
-		fmt.Println("Failed to unmarshall the PostRequest")
+		log.Fatalf("Failed to unmarshall the PostRequest")
 		return
 	}
 
 	userId, err := dbConnector.InsertUser(postRequest.GetFirstName(), postRequest.GetLastName(), postRequest.GetEmail())
 	if err != nil {
-		fmt.Printf("Failed to insert user into database, reason: %s", err.Error())
+		log.Fatalf("Failed to insert user into database, reason: %s", err.Error())
 		return
 	}
 	_, err = dbConnector.InsertEmployee(userId, postRequest.GetDesignation())
 	if err != nil {
-		fmt.Println("Failed to insert employee into database")
+		log.Fatalf("Failed to insert employee into database")
 		return
 	}
 
 	postResponse := &proto_files.PostResponse{Id: userId.Hex()}
 	getResponseMarshalled, err := proto.Marshal(postResponse)
 	if err != nil {
-		fmt.Println("Failed to marshal the PostResponse")
+		log.Fatalf("Failed to marshal the PostResponse")
 		return
 	}
 	responseWriter.Write(getResponseMarshalled)
@@ -89,18 +88,18 @@ func patchHandler(responseWriter http.ResponseWriter, request *http.Request) {
 
 	patchRequest := &proto_files.PatchRequest{}
 	if err := proto.Unmarshal(protoBody, patchRequest); err != nil {
-		fmt.Println("Failed to unmarshall the PostRequest")
+		log.Fatalf("Failed to unmarshall the PostRequest")
 		return
 	}
 
 	objId, err := primitive.ObjectIDFromHex(patchRequest.GetId())
 	if err != nil {
-		fmt.Println("Failed to parse string to ObjectId")
+		log.Fatalf("Failed to parse string to ObjectId")
 		return
 	}
 	_, err = dbConnector.UpdateUser(objId, patchRequest.GetEmail())
 	if err != nil {
-		fmt.Println("Failed to update user")
+		log.Fatalf("Failed to update user")
 		return
 	}
 
